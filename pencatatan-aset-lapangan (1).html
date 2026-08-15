@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pencatatan Aset — Storia Coffee</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --navy:#1F3864; --navy-light:#2E4E8C; --cream:#F7F5F0; --line:#DDE3EE;
+    --ink:#1A1A1A; --muted:#6B7280; --yellow:#FFF2CC; --green:#1E7A46; --red:#B3261E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:var(--cream);color:var(--ink);padding:20px 16px 90px;}
+  .wrap{max-width:640px;margin:0 auto;}
+  header{margin-bottom:20px;}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--navy-light);margin-bottom:6px;}
+  h1{font-size:22px;font-weight:800;color:var(--navy);margin:0 0 6px;}
+  header p{color:var(--muted);margin:0;font-size:13px;line-height:1.5;}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;}
+  .card h2{font-size:14px;font-weight:700;color:var(--navy);margin:0 0 12px;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px;}
+  .field .hint{font-size:11px;color:var(--muted);margin-top:3px;}
+  input, select, textarea{
+    width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 11px;
+    font-family:inherit;font-size:14px;background:#fff;color:var(--ink);
+  }
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--navy-light);outline-offset:1px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .badge{
+    display:inline-block;background:var(--yellow);color:var(--navy);font-weight:800;
+    font-size:15px;padding:6px 12px;border-radius:8px;letter-spacing:.02em;
+  }
+  .req::after{content:" *";color:var(--red);}
+
+  .status-warn{
+    background:#FBE7E5;border:1px solid #E8B3AD;color:var(--red);
+    border-radius:8px;padding:9px 11px;font-size:12px;margin-bottom:12px;display:none;
+  }
+  .status-warn.show{display:block;}
+
+  button{font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;border-radius:9px;border:1px solid transparent;padding:12px 18px;width:100%;}
+  .btn-primary{background:var(--navy);color:#fff;}
+  .btn-primary:hover{background:var(--navy-light);}
+  .btn-secondary{background:#fff;border-color:var(--navy);color:var(--navy);margin-top:8px;}
+  .btn-export{background:var(--green);color:#fff;}
+  .btn-export:hover{filter:brightness(1.08);}
+
+  .entry{
+    border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+  }
+  .entry .meta{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;}
+  .entry .kode{font-weight:800;color:var(--navy);font-size:13px;}
+  .entry .nama{font-weight:600;font-size:14px;margin-top:2px;}
+  .entry .tag{
+    display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;
+    margin-top:4px;margin-right:4px;
+  }
+  .tag-pt{background:#DCF3E4;color:var(--green);}
+  .tag-other{background:#FBE7E5;color:var(--red);}
+  .tag-lengkap{background:#DCF3E4;color:var(--green);}
+  .tag-belum{background:var(--yellow);color:#8A6D00;}
+  .del-btn{border:none;background:none;color:var(--red);font-size:18px;cursor:pointer;padding:2px 6px;flex-shrink:0;}
+
+  .empty{text-align:center;color:var(--muted);font-size:13px;padding:24px 0;}
+  .thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;border:1px solid var(--line);cursor:pointer;flex-shrink:0;}
+  .entry-body{display:flex;gap:10px;flex:1;min-width:0;}
+  .lightbox{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .lightbox.show{display:flex;}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:8px;}
+  .lightbox-close{position:absolute;top:16px;right:20px;color:#fff;font-size:28px;background:none;border:none;width:auto;padding:6px 12px;}
+  .counter-box{
+    background:var(--navy);color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:16px;
+    display:flex;justify-content:space-between;align-items:center;font-size:13px;
+  }
+  .counter-box .num{font-size:18px;font-weight:800;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Storia Coffee · Aset</div>
+    <h1>Pencatatan Aset Lapangan</h1>
+    <p>Isi di lokasi, nomor AST otomatis berurutan, tersimpan di HP ini. Export kapan saja ke format siap-import ERP.</p>
+  </header>
+
+  <div class="counter-box">
+    <span>Nomor AST berikutnya</span>
+    <span class="num" id="nextAstDisplay">AST-0001</span>
+  </div>
+
+  <div class="card">
+    <h2>Tambah Aset</h2>
+    <div id="statusWarn" class="status-warn"></div>
+
+    <div class="field">
+      <label class="req">Nama Aset</label>
+      <input type="text" id="f_name" placeholder="Kulkas Showcase 2 Pintu">
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label class="req">Kategori</label>
+        <select id="f_category"></select>
+      </div>
+      <div class="field">
+        <label>Umur Manfaat (bulan)</label>
+        <input type="number" id="f_life" placeholder="otomatis">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Merk</label>
+        <input type="text" id="f_merk" placeholder="GEA">
+      </div>
+      <div class="field">
+        <label class="req">Lokasi</label>
+        <select id="f_lokasi">
+          <option>POOL GBJ</option><option>POOL CBN</option><option>XPR CBN</option>
+          <option>XPR GBJ</option><option>XPR WH</option><option>STORIA SPACE</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="req">Status Kepemilikan</label>
+      <select id="f_status">
+        <option value="Milik PT">Milik PT</option>
+        <option value="Milik Pribadi - Dipinjamkan">Milik Pribadi - Dipinjamkan</option>
+        <option value="Sewa dari Pribadi">Sewa dari Pribadi</option>
+        <option value="Belum Jelas">Belum Jelas</option>
+      </select>
+      <div class="hint">Hanya "Milik PT" yang akan ikut ter-export ke file import ERP.</div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Tanggal Perolehan</label>
+        <input type="date" id="f_date">
+        <div class="hint">Belum tahu? Kosongkan dulu, lengkapi nanti dari cross-check mutasi rekening.</div>
+      </div>
+      <div class="field">
+        <label>Nilai Perolehan (Rp)</label>
+        <input type="number" id="f_cost" placeholder="isi nanti">
+        <div class="hint">Wajib diisi SEBELUM export final ke ERP.</div>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Nilai Residu (Rp)</label>
+        <input type="number" id="f_salvage" value="0">
+      </div>
+      <div class="field">
+        <label>Kondisi</label>
+        <select id="f_kondisi">
+          <option>Baik</option><option>Cukup</option><option>Rusak Ringan</option><option>Rusak Berat</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Catatan</label>
+      <textarea id="f_notes" rows="2" placeholder="Bukti kepemilikan, No FAR lama, dll"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Foto Aset</label>
+      <input type="file" id="f_photo" accept="image/*" capture="environment" onchange="previewPhoto(event)">
+      <div class="hint">Otomatis dikompres untuk hemat penyimpanan — untuk referensi visual, tidak ikut ter-export ke ERP.</div>
+      <img id="photoPreview" style="display:none;margin-top:8px;max-width:140px;border-radius:8px;border:1px solid var(--line);">
+    </div>
+
+    <div class="field" style="margin-bottom:0;">
+      <label>Nomor Aset (AST) — otomatis</label>
+      <div class="badge" id="astPreview">AST-0001</div>
+    </div>
+
+    <button class="btn-primary" style="margin-top:14px;" onclick="saveEntry()">Simpan Entri</button>
+  </div>
+
+  <div class="card">
+    <h2>Entri Tersimpan (<span id="entryCount">0</span>)</h2>
+    <div id="entryList"><div class="empty">Belum ada entri tersimpan.</div></div>
+    <button class="btn-export" onclick="exportToExcel()">📤 Export ke Excel (Format Import ERP)</button>
+    <button class="btn-secondary" onclick="downloadAllPhotos()">📷 Download Semua Foto (ZIP)</button>
+    <button class="btn-secondary" onclick="clearAll()">Hapus Semua Entri</button>
+    <button class="btn-secondary" style="border-color:var(--red);color:var(--red);margin-top:8px;" onclick="resetTotal()">⚠ Reset Total (kembali ke AST-0001)</button>
+    <div class="hint" style="text-align:center;margin-top:6px;">Pakai ini HANYA kalau data yang ada sekarang murni percobaan, bukan aset asli.</div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" onclick="event.stopPropagation()">
+  <button class="lightbox-close" id="lightboxDownload" style="right:70px;font-size:16px;" onclick="event.stopPropagation()">⬇ Download</button>
+</div>
+
+<script>
+const CATEGORIES = [
+  { code: "MESIN", label: "Mesin & Alat Dapur", months: 48 },
+  { code: "FURN", label: "Furniture & Perabotan", months: 48 },
+  { code: "ELEKPOS", label: "Elektronik Kantor & POS", months: 48 },
+  { code: "KEND", label: "Kendaraan & Gerobak", months: 48 },
+  { code: "PENDINGIN", label: "Elektronik & Pendingin", months: 48 },
+  { code: "DEKOR", label: "Dekorasi & Signage", months: 192 },
+  { code: "RENOV", label: "Renovasi & Instalasi Permanen", months: null },
+  { code: "LAIN", label: "Lain-lain", months: 192 },
+];
+
+let entries = [];
+let nextAstNumber = 1;
+let pendingPhotoDataUrl = null;
+const photoCache = {};
+
+// localStorage shim — meniru API window.storage supaya bisa jalan di hosting mana pun (bukan cuma di Claude)
+// Deteksi otomatis: ada window.storage (jalan di dalam Claude) atau tidak (di-deploy ke hosting luar)
+const hasClaudeStorage = (typeof window.storage !== "undefined" && window.storage !== null);
+
+// Penyimpanan ENTRI (teks, kecil) — pakai window.storage kalau di Claude, kalau tidak pakai localStorage
+const storage = hasClaudeStorage ? window.storage : {
+  async get(key){
+    const v = localStorage.getItem(key);
+    return v !== null ? { key, value: v } : null;
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return { key, value };
+  },
+  async delete(key){
+    localStorage.removeItem(key);
+    return { key, deleted: true };
+  },
+};
+
+// IndexedDB khusus untuk FOTO — kapasitasnya jauh lebih besar dari localStorage (yang cuma ~5-10MB total)
+const PHOTO_DB_NAME = "storia_aset_photos";
+const PHOTO_STORE = "photos";
+let _photoDbPromise = null;
+
+function openPhotoDB(){
+  if(_photoDbPromise) return _photoDbPromise;
+  _photoDbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(PHOTO_DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(PHOTO_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return _photoDbPromise;
+}
+
+async function photoDBSet(key, value){
+  const db = await openPhotoDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PHOTO_STORE, "readwrite");
+    tx.objectStore(PHOTO_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function photoDBGet(key){
+  const db = await openPhotoDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PHOTO_STORE, "readonly");
+    const req = tx.objectStore(PHOTO_STORE).get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function photoDBDelete(key){
+  const db = await openPhotoDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PHOTO_STORE, "readwrite");
+    tx.objectStore(PHOTO_STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// Penyimpanan FOTO — pakai window.storage (di Claude) atau IndexedDB (di hosting luar), otomatis pilih
+async function photoSet(key, value){
+  if(hasClaudeStorage){
+    await window.storage.set("photo_" + key, value);
+  } else {
+    await photoDBSet(key, value);
+  }
+}
+async function photoGet(key){
+  if(hasClaudeStorage){
+    const res = await window.storage.get("photo_" + key);
+    return res ? res.value : null;
+  } else {
+    return await photoDBGet(key);
+  }
+}
+async function photoDelete(key){
+  if(hasClaudeStorage){
+    try { await window.storage.delete("photo_" + key); } catch(e){ /* ignore */ }
+  } else {
+    try { await photoDBDelete(key); } catch(e){ /* ignore */ }
+  }
+}
+
+function pad4(n){ return String(n).padStart(4, "0"); }
+function astCode(n){ return "AST-" + pad4(n); }
+
+function withTimeout(promise, ms){
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout: penyimpanan tidak merespon")), ms)),
+  ]);
+}
+
+function compressImage(file, maxWidth = 640, quality = 0.6){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function previewPhoto(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  try {
+    pendingPhotoDataUrl = await compressImage(file);
+    const preview = document.getElementById("photoPreview");
+    preview.src = pendingPhotoDataUrl;
+    preview.style.display = "block";
+  } catch(e){
+    showWarn("Gagal memproses foto, coba lagi.");
+  }
+}
+
+function openLightbox(src, assetCode){
+  document.getElementById("lightboxImg").src = src;
+  document.getElementById("lightbox").classList.add("show");
+  const dlBtn = document.getElementById("lightboxDownload");
+  dlBtn.onclick = (ev) => { ev.stopPropagation(); downloadSinglePhoto(src, assetCode); };
+}
+function closeLightbox(){
+  document.getElementById("lightbox").classList.remove("show");
+}
+
+function dataUrlToBlob(dataUrl){
+  const [header, base64] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)[1];
+  const bin = atob(base64);
+  const arr = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+function downloadSinglePhoto(dataUrl, assetCode){
+  const blob = dataUrlToBlob(dataUrl);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${assetCode}.jpg`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function downloadAllPhotos(){
+  const withPhotos = entries.filter(e => e.hasPhoto);
+  if(withPhotos.length === 0){
+    showWarn("Belum ada foto yang tersimpan untuk diunduh.");
+    return;
+  }
+  const zip = new JSZip();
+  for(const e of withPhotos){
+    const src = await getPhoto(e.asset_code);
+    if(!src) continue;
+    const blob = dataUrlToBlob(src);
+    const safeName = e.name.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 30);
+    zip.file(`${e.asset_code}_${safeName}.jpg`, blob);
+  }
+  const content = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(content);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Foto_Aset_Storia_${new Date().toISOString().slice(0,10)}.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function getPhoto(assetCode){
+  if(photoCache[assetCode]) return photoCache[assetCode];
+  try {
+    const res = await withTimeout(photoGet(assetCode), 4000);
+    if(res){ photoCache[assetCode] = res; return res; }
+    // fallback: cek localStorage kalau-kalau ini foto lama sebelum migrasi ke IndexedDB
+    const legacy = await storage.get("photo_" + assetCode);
+    if(legacy){ photoCache[assetCode] = legacy.value; return legacy.value; }
+  } catch(e){ /* no photo / timeout */ }
+  return null;
+}
+
+async function loadState(){
+  try {
+    const res = await withTimeout(storage.get("aset_entries"), 4000);
+    entries = res ? JSON.parse(res.value) : [];
+  } catch(e) { entries = []; }
+  try {
+    const res2 = await withTimeout(storage.get("next_ast_number"), 4000);
+    nextAstNumber = res2 ? parseInt(res2.value, 10) : 1;
+  } catch(e) { nextAstNumber = 1; }
+  renderCategories();
+  renderEntries();
+  renderCounter();
+}
+
+async function saveState(){
+  await withTimeout(storage.set("aset_entries", JSON.stringify(entries)), 4000);
+  await withTimeout(storage.set("next_ast_number", String(nextAstNumber)), 4000);
+}
+
+function renderCategories(){
+  const sel = document.getElementById("f_category");
+  sel.innerHTML = CATEGORIES.map(c => `<option value="${c.code}">${c.code} — ${c.label}</option>`).join("");
+  sel.onchange = () => {
+    const cat = CATEGORIES.find(c => c.code === sel.value);
+    document.getElementById("f_life").value = cat.months || "";
+  };
+  sel.onchange();
+}
+
+function renderCounter(){
+  document.getElementById("nextAstDisplay").textContent = astCode(nextAstNumber);
+  document.getElementById("astPreview").textContent = astCode(nextAstNumber);
+}
+
+function renderEntries(){
+  const list = document.getElementById("entryList");
+  document.getElementById("entryCount").textContent = entries.length;
+  if(entries.length === 0){
+    list.innerHTML = '<div class="empty">Belum ada entri tersimpan.</div>';
+    return;
+  }
+  list.innerHTML = entries.map((e, i) => {
+    const lengkap = Boolean(e.acquisition_date && e.acquisition_cost);
+    return `
+    <div class="entry">
+      <div class="entry-body">
+        ${e.hasPhoto ? `<img class="thumb" id="thumb_${e.asset_code}" onclick="viewPhoto('${e.asset_code}')">` : ""}
+        <div>
+          <div class="kode">${e.asset_code}</div>
+          <div class="nama">${e.name}</div>
+          <div class="meta">${e.category_code} · ${e.lokasi} · ${e.acquisition_cost ? 'Rp ' + Number(e.acquisition_cost).toLocaleString('id-ID') : '(nilai belum diisi)'}</div>
+          <span class="tag ${e.status === 'Milik PT' ? 'tag-pt' : 'tag-other'}">${e.status}</span>
+          <span class="tag ${lengkap ? 'tag-lengkap' : 'tag-belum'}">${lengkap ? 'Lengkap' : 'Belum Lengkap'}</span>
+        </div>
+      </div>
+      <button class="del-btn" onclick="deleteEntry(${i})" title="Hapus">✕</button>
+    </div>
+  `;
+  }).join("");
+
+  entries.filter(e => e.hasPhoto).forEach(async (e) => {
+    const src = await getPhoto(e.asset_code);
+    const el = document.getElementById("thumb_" + e.asset_code);
+    if(el && src) el.src = src;
+  });
+}
+
+async function viewPhoto(assetCode){
+  const src = await getPhoto(assetCode);
+  if(src) openLightbox(src, assetCode);
+}
+
+function showWarn(msg){
+  const el = document.getElementById("statusWarn");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 4000);
+}
+
+async function saveEntry(){
+  const name = document.getElementById("f_name").value.trim();
+  const category_code = document.getElementById("f_category").value;
+  const lokasi = document.getElementById("f_lokasi").value;
+  const status = document.getElementById("f_status").value;
+  const date = document.getElementById("f_date").value;
+  const cost = document.getElementById("f_cost").value;
+  const salvage = document.getElementById("f_salvage").value || "0";
+  const life = document.getElementById("f_life").value;
+  const merk = document.getElementById("f_merk").value.trim();
+  const kondisi = document.getElementById("f_kondisi").value;
+  const notesRaw = document.getElementById("f_notes").value.trim();
+
+  if(!name){
+    showWarn("Nama Aset wajib diisi.");
+    return;
+  }
+  if(status === "Belum Jelas" || status.startsWith("Milik Pribadi") || status.startsWith("Sewa")){
+    showWarn(`Disimpan, tapi status "${status}" TIDAK akan ikut ter-export ke file import ERP (hanya Milik PT yang boleh masuk pembukuan PT).`);
+  }
+
+  const noteParts = [];
+  if(merk) noteParts.push(`Merk: ${merk}`);
+  noteParts.push(`Lokasi: ${lokasi}`);
+  noteParts.push(`Kondisi: ${kondisi}`);
+  if(notesRaw) noteParts.push(notesRaw);
+
+  const entry = {
+    asset_code: astCode(nextAstNumber),
+    name, category_code, lokasi, status,
+    acquisition_date: date,
+    acquisition_cost: cost,
+    salvage_value: salvage,
+    useful_life_months: life,
+    depreciation_method: "straight_line",
+    notes: noteParts.join(" | "),
+    hasPhoto: Boolean(pendingPhotoDataUrl),
+  };
+  entries.push(entry);
+  nextAstNumber++;
+
+  document.getElementById("f_name").value = "";
+  document.getElementById("f_merk").value = "";
+  document.getElementById("f_cost").value = "";
+  document.getElementById("f_salvage").value = "0";
+  document.getElementById("f_notes").value = "";
+  document.getElementById("f_photo").value = "";
+  document.getElementById("photoPreview").style.display = "none";
+  renderCounter();
+  renderEntries();
+
+  try {
+    await saveState();
+  } catch(e){
+    showWarn("Entri tampil di daftar, TAPI gagal tersimpan permanen — jangan tutup/refresh halaman sebelum ini berhasil. Coba lagi atau export segera.");
+  }
+
+  if(pendingPhotoDataUrl){
+    const photoToSave = pendingPhotoDataUrl;
+    pendingPhotoDataUrl = null;
+    try {
+      await withTimeout(photoSet(entry.asset_code, photoToSave), 4000);
+      photoCache[entry.asset_code] = photoToSave;
+    } catch(e){
+      entry.hasPhoto = false;
+      await saveState();
+      renderEntries();
+      showWarn("Entri sudah tersimpan, tapi foto GAGAL disimpan — kemungkinan besar Anda membuka file ini secara lokal (bukan lewat link https://...github.io), sehingga penyimpanan foto diblokir browser. Buka lewat link asli, bukan file yang didownload.");
+    }
+  } else {
+    pendingPhotoDataUrl = null;
+  }
+}
+
+async function deleteEntry(i){
+  const e = entries[i];
+  if(e.hasPhoto){
+    await photoDelete(e.asset_code);
+    delete photoCache[e.asset_code];
+  }
+  entries.splice(i, 1);
+  await saveState();
+  renderEntries();
+}
+
+async function clearAll(){
+  if(!confirm("Hapus SEMUA entri tersimpan di HP ini? Nomor AST berikutnya tidak akan mundur.")) return;
+  entries = [];
+  await saveState();
+  renderEntries();
+}
+
+async function resetTotal(){
+  const step1 = confirm(
+    "PERINGATAN: Ini akan menghapus SEMUA entri (termasuk foto) DAN mengembalikan Nomor AST kembali ke AST-0001.\n\n" +
+    "HANYA lakukan ini kalau seluruh data yang ada sekarang murni percobaan/testing — BUKAN aset asli yang sudah dikonfirmasi Milik PT.\n\n" +
+    "Lanjutkan?"
+  );
+  if(!step1) return;
+  const step2 = confirm("Yakin? Tindakan ini tidak bisa dibatalkan.");
+  if(!step2) return;
+
+  for(const e of entries){
+    if(e.hasPhoto){
+      await photoDelete(e.asset_code);
+    }
+  }
+  entries = [];
+  nextAstNumber = 1;
+  await saveState();
+  renderCounter();
+  renderEntries();
+  showWarn("Reset selesai — nomor kembali ke AST-0001.");
+}
+
+function exportToExcel(){
+  const eligible = entries.filter(e => e.status === "Milik PT");
+  if(eligible.length === 0){
+    showWarn("Tidak ada entri berstatus 'Milik PT' untuk di-export.");
+    return;
+  }
+  const incomplete = eligible.filter(e => !(e.acquisition_date && e.acquisition_cost));
+  if(incomplete.length > 0){
+    const proceed = confirm(
+      `${incomplete.length} dari ${eligible.length} entri BELUM LENGKAP (tanggal/nilai perolehan kosong).\n\n` +
+      `File tetap akan ter-export, tapi baris yang belum lengkap KEMUNGKINAN BESAR GAGAL saat diupload ke ERP (kedua kolom itu wajib di sistem).\n\n` +
+      `Lengkapi dulu via cross-check mutasi sebelum upload. Lanjut export sekarang?`
+    );
+    if(!proceed) return;
+  }
+  const rows = eligible.map(e => ({
+    name: e.name,
+    category_code: e.category_code,
+    acquisition_date: e.acquisition_date,
+    acquisition_cost: e.acquisition_cost,
+    asset_code: e.asset_code,
+    depreciation_start_date: "",
+    salvage_value: e.salvage_value,
+    useful_life_months: e.useful_life_months,
+    depreciation_method: e.depreciation_method,
+    accumulated_depreciation: "",
+    notes: e.notes,
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows, {
+    header: ["name","category_code","acquisition_date","acquisition_cost","asset_code","depreciation_start_date","salvage_value","useful_life_months","depreciation_method","accumulated_depreciation","notes"]
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Aset Tetap");
+  const today = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `Import_Aset_Storia_${today}.xlsx`);
+}
+
+loadState();
+</script>
+</body>
+</html>
